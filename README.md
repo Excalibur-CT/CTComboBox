@@ -7,3 +7,8 @@
 #### 3. 下拉选项可以动态添加
 
 ## 功能截图
+
+<img src="https://github.com/Excalibur-CT/YLComboBox/blob/master/0001.png">
+<img src="https://github.com/Excalibur-CT/YLComboBox/blob/master/0002.png">
+<img src="https://github.com/Excalibur-CT/YLComboBox/blob/master/0003.png">
+<img src="https://github.com/Excalibur-CT/YLComboBox/blob/master/0004.png">
