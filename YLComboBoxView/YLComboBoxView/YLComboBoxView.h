@@ -8,6 +8,17 @@
 
 #import <UIKit/UIKit.h>
 
+
+#define KIndatiorSize           CGSizeMake(16, 8)
+#define KTitleIndatiorDistance  10
+#define KTitleFontSize          14
+
+// 标题背景色
+#define KBoxTitleBackColor   [UIColor whiteColor]
+
+
+
+
 @interface YLIndexPath : NSObject
 
 @property (nonatomic, assign) NSInteger column;  // 菜单索引
@@ -103,5 +114,12 @@ UICollectionViewDelegateFlowLayout>
 - (instancetype)initWithOrigin:(CGPoint)origin andHeight:(CGFloat)height;
 
 - (NSString *)titleForRowAtIndexPath:(YLIndexPath *)indexPath;
-
+/**
+ *  刷新Title
+ */
+- (void)reloadTitleData;
+/**
+ *  刷新数据
+ */
+- (void)reloadData;
 @end

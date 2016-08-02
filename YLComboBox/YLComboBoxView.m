@@ -13,8 +13,6 @@ static NSString * const tableViewCellIndentifier      = @"tableViewCellIndentifi
 static NSString * const collectionViewCellIndentifier = @"collectionCellIndentifier";
 static NSString * const collectionViewFooterIndentifier = @"collectionViewFooterIndentifier";
 
-// 标题背景色
-#define KBoxTitleBackColor   [UIColor whiteColor]
 
 
 #pragma mark - YLIndexPath implementation -
@@ -94,7 +92,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
 @property (nonatomic, copy  ) NSArray   * titleLayerAry;
 @property (nonatomic, copy  ) NSArray   * indicatorAry;
 @property (nonatomic, copy  ) NSArray   * bgLayerAry;
-@property (nonatomic, copy  ) NSArray   * arrowsAry;
 @end
 
 @implementation YLComboBoxView
@@ -223,7 +220,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
     NSMutableArray * tempTitlesAry = [[NSMutableArray alloc] initWithCapacity:_numOfBox];
     NSMutableArray * tempIndicatorsAry = [[NSMutableArray alloc] initWithCapacity:_numOfBox];
     NSMutableArray * tempBgLayersAry = [[NSMutableArray alloc] initWithCapacity:_numOfBox];
-    NSMutableArray * tempArrowsAry = [[NSMutableArray alloc] initWithCapacity:_numOfBox];
 
     for (int i = 0; i < _numOfBox; i++)
     {
@@ -233,24 +229,16 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
         [self.layer addSublayer:bgLayer];
         [tempBgLayersAry addObject:bgLayer];
         
-        // arrow
-        CGPoint arrowPosition = CGPointMake(0.5*bgLayerWidth, CGRectGetHeight(self.frame)-4);
-        CALayer * arrow = [self createArrowWithColor:self.indicatorColor andPosition:arrowPosition];
-        arrow.hidden = YES;
-        [bgLayer addSublayer:arrow];
-        [tempArrowsAry addObject:arrow];
-        
-
-        
         // title
-        CGPoint titlePosition = CGPointMake( (i * 2 + 1) * textLayerWidth , self.frame.size.height / 2);
+        CGPoint titlePosition = CGPointMake((i * 2 + 1) * textLayerWidth -(KIndatiorSize.width+KTitleIndatiorDistance)/2.0, self.frame.size.height / 2);
         NSString *titleString = [_dataSource boxView:self titleForColumn:i];
         CATextLayer *title = [self createTextLayerWithNSString:titleString withColor:self.textColor andPosition:titlePosition];
         [self.layer addSublayer:title];
         [tempTitlesAry addObject:title];
         
         // indicator
-        CAShapeLayer *indicator = [self createIndicatorWithColor:self.indicatorColor andPosition:CGPointMake(titlePosition.x + title.bounds.size.width / 2 + 8, self.frame.size.height / 2)];
+        CGPoint indicatorPosition =CGPointMake(titlePosition.x + CGRectGetWidth(title.frame) / 2 + KIndatiorSize.width/2.0+KTitleIndatiorDistance, self.frame.size.height / 2);
+        CAShapeLayer *indicator = [self createIndicatorWithColor:self.indicatorColor andPosition:indicatorPosition type:0];
         [self.layer addSublayer:indicator];
         [tempIndicatorsAry addObject:indicator];
 
@@ -269,9 +257,33 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
     _titleLayerAry = [tempTitlesAry copy];
     _indicatorAry = [tempIndicatorsAry copy];
     _bgLayerAry = [tempBgLayersAry copy];
-    _arrowsAry = [tempArrowsAry copy];
 }
 
+- (void)reloadTitleData
+{
+    for (int i = 0; i < _numOfBox; i++)
+    {
+        if (self.dataSource && [self.dataSource respondsToSelector:@selector(boxView:titleForColumn:)])
+        {
+            NSString * string = [self.dataSource boxView:self titleForColumn:i];
+            CATextLayer * titleLayer = ((CATextLayer *)_titleLayerAry[i]);
+            titleLayer.string = string;
+            CGSize size = [self calculateTitleSizeWithString:string];
+            CGFloat sizeWidth = fminf(size.width, CGRectGetWidth(self.frame) / _numOfBox - KIndatiorSize.width-KTitleIndatiorDistance);
+            ((CATextLayer *)_titleLayerAry[i]).bounds = CGRectMake(0, 1, sizeWidth, size.height);
+            
+            CAShapeLayer *indicator = (CAShapeLayer *)_indicatorAry[_currentSelectedBoxIndex];
+            indicator.position = CGPointMake(titleLayer.position.x + titleLayer.frame.size.width / 2 + 8, indicator.position.y);
+        }
+    }
+    [self reloadData];
+}
+
+- (void)reloadData
+{
+    [_tableView reloadData];
+    [_collectionView reloadData];
+}
 
 - (NSString *)titleForRowAtIndexPath:(YLIndexPath *)indexPath
 {
@@ -288,51 +300,42 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
     return layer;
 }
 
-- (CAShapeLayer *)createIndicatorWithColor:(UIColor *)color andPosition:(CGPoint)point
+- (CAShapeLayer *)createIndicatorWithColor:(UIColor *)color andPosition:(CGPoint)point type:(NSInteger)type
 {
     CAShapeLayer *layer = [CAShapeLayer new];
+    
     UIBezierPath *path = [UIBezierPath new];
-    [path moveToPoint:CGPointMake(0, 0)];
-    [path addLineToPoint:CGPointMake(8, 0)];
-    [path addLineToPoint:CGPointMake(4, 5)];
-    [path closePath];
+    
+    if (type == 0)   // 空心箭头
+    {
+        [path moveToPoint:CGPointMake(0, KIndatiorSize.height)];
+        [path addLineToPoint:CGPointMake(KIndatiorSize.width/2.0, 0)];
+        
+        path.lineJoinStyle = kCGLineCapRound; //终点处理
+        
+        UIBezierPath *path1 = [UIBezierPath new];
+        [path1 moveToPoint:CGPointMake(KIndatiorSize.width/2.0, 0)];
+        [path1 addLineToPoint:CGPointMake(KIndatiorSize.width, KIndatiorSize.height)];
+        
+        path1.lineJoinStyle = kCGLineCapRound; //终点处理
+        [path appendPath:path1];
+        layer.strokeColor = color.CGColor;
+
+    }else if(type == 1) // 实心箭头
+    {
+        [path moveToPoint:CGPointMake(0, 0)];
+        [path addLineToPoint:CGPointMake(KIndatiorSize.width, 0)];
+        [path addLineToPoint:CGPointMake(KIndatiorSize.width/2.0, KIndatiorSize.height)];
+        [path closePath];
+        
+        layer.fillColor = color.CGColor;
+    }
     
     layer.path = path.CGPath;
     layer.lineWidth = 1.0;
-    layer.fillColor = color.CGColor;
+  
     
-    CGPathRef bound = CGPathCreateCopyByStrokingPath(layer.path, nil, layer.lineWidth, kCGLineCapButt, kCGLineJoinMiter, layer.miterLimit);
-    layer.bounds = CGPathGetBoundingBox(bound);
-    
-    CGPathRelease(bound);
-    
-    layer.position = point;
-    
-    return layer;
-}
-
-- (CAShapeLayer *)createArrowWithColor:(UIColor *)color andPosition:(CGPoint)point
-{
-    CAShapeLayer *layer = [CAShapeLayer new];
-    layer.frame = CGRectMake(0, 0, 16, 8);
-    UIBezierPath *path = [UIBezierPath new];
-    [path moveToPoint:CGPointMake(0, 8)];
-    [path addLineToPoint:CGPointMake(8, 0)];
-    
-    path.lineJoinStyle = kCGLineCapRound; //终点处理
-
-    UIBezierPath *path1 = [UIBezierPath new];
-    [path1 moveToPoint:CGPointMake(8, 0)];
-    [path1 addLineToPoint:CGPointMake(16, 8)];
-    
-    path1.lineJoinStyle = kCGLineCapRound; //终点处理
-    [path appendPath:path1];
-    
-    layer.path = path.CGPath;
-    layer.lineWidth = 1.0;
-    layer.strokeColor = color.CGColor;
-
-    
+    layer.bounds = CGRectMake(0, 0, KIndatiorSize.width, KIndatiorSize.height);
     layer.position = point;
     
     return layer;
@@ -352,10 +355,11 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
 {
     CGSize size = [self calculateTitleSizeWithString:string];
     CATextLayer *layer = [CATextLayer new];
-    CGFloat sizeWidth = (size.width < (self.frame.size.width / _numOfBox) - 25) ? size.width : self.frame.size.width / _numOfBox - 25;
-    layer.bounds = CGRectMake(0, 0, sizeWidth, size.height);
+    CGFloat sizeWidth = fminf(size.width, (self.frame.size.width / _numOfBox) - KIndatiorSize.width - KTitleIndatiorDistance) ;
+    layer.bounds = CGRectMake(0, 1, sizeWidth, size.height);
     layer.string = string;
-    layer.fontSize = 14.0;
+    layer.truncationMode = kCATruncationEnd;
+    layer.fontSize = KTitleFontSize;
     layer.alignmentMode = kCAAlignmentCenter;
     layer.foregroundColor = color.CGColor;
     layer.contentsScale = [[UIScreen mainScreen] scale];
@@ -366,9 +370,9 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
 
 - (CGSize)calculateTitleSizeWithString:(NSString *)string
 {
-    CGFloat fontSize = 14.0;
+    CGFloat fontSize = KTitleFontSize;
     NSDictionary *dic = @{NSFontAttributeName: [UIFont systemFontOfSize:fontSize]};
-    CGSize size = [string boundingRectWithSize:CGSizeMake(280, 0) options:NSStringDrawingTruncatesLastVisibleLine | NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading attributes:dic context:nil].size;
+    CGSize size = [string boundingRectWithSize:CGSizeMake(320, 30) options:NSStringDrawingTruncatesLastVisibleLine | NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading attributes:dic context:nil].size;
     return size;
 }
 
@@ -391,9 +395,7 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
         for (int i = 0; i < _numOfBox; i++) {
             if (i != tapIndex) {
                 [self animateIndicator:_indicatorAry[i] Forward:NO complete:^{
-                    [self animateTitle:_titleLayerAry[i] show:NO complete:^{
-                        [self animateArrow:_arrowsAry[i] show:NO complete:nil];
-                    }];
+                    [self animateTitle:_titleLayerAry[i] show:NO complete:nil];
                 }];
                 [(CALayer *)self.bgLayerAry[i] setBackgroundColor:KBoxTitleBackColor.CGColor];
             }
@@ -416,7 +418,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                         backgroundView:_backGroundView
                         collectionView:collectionView
                             titleLayer:_titleLayerAry[_currentSelectedBoxIndex]
-                                 arrow:_arrowsAry[_currentSelectedBoxIndex]
                                forward:NO
                              complecte:^{
                                  _currentSelectedBoxIndex = tapIndex;
@@ -441,7 +442,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                                 backgroundView:_backGroundView
                                 collectionView:collectionView
                                     titleLayer:_titleLayerAry[tapIndex]
-                                         arrow:_arrowsAry[_currentSelectedBoxIndex]
                                        forward:YES complecte:^{
                                            _isShow = YES;
                                        }];
@@ -457,7 +457,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                             backgroundView:_backGroundView
                             collectionView:collectionView
                                 titleLayer:_titleLayerAry[tapIndex]
-                                     arrow:_arrowsAry[_currentSelectedBoxIndex]
                                    forward:YES
                                  complecte:^{
                                        _isShow = YES;
@@ -477,7 +476,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                         backgroundView:_backGroundView
                              tableView:_tableView
                             titleLayer:_titleLayerAry[_currentSelectedBoxIndex]
-                                 arrow:_arrowsAry[_currentSelectedBoxIndex]
                                forward:NO
                              complecte:^{
                                  _currentSelectedBoxIndex = tapIndex;
@@ -505,7 +503,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                                 backgroundView:_backGroundView
                                      tableView:_tableView
                                     titleLayer:_titleLayerAry[tapIndex]
-                                         arrow:_arrowsAry[_currentSelectedBoxIndex]
                                        forward:YES
                                      complecte:^{
                                          _isShow = YES;
@@ -519,7 +516,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                             backgroundView:_backGroundView
                                  tableView:_tableView
                                 titleLayer:_titleLayerAry[tapIndex]
-                                     arrow:_arrowsAry[_currentSelectedBoxIndex]
                                    forward:YES
                                  complecte:^{
                                      _isShow = YES;
@@ -549,7 +545,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                 backgroundView:_backGroundView
                 collectionView:_collectionView
                     titleLayer:_titleLayerAry[_currentSelectedBoxIndex]
-                         arrow:_arrowsAry[_currentSelectedBoxIndex]
                        forward:NO
                      complecte:^{
                          _isShow = NO;
@@ -563,7 +558,6 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
                 backgroundView:_backGroundView
                      tableView:_tableView
                     titleLayer:_titleLayerAry[_currentSelectedBoxIndex]
-                         arrow:_arrowsAry[_currentSelectedBoxIndex]
                        forward:NO
                      complecte:^{
                          _isShow = NO;
@@ -710,22 +704,8 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
             complete:(void(^)())complete
 {
     CGSize size = [self calculateTitleSizeWithString:title.string];
-    CGFloat sizeWidth = (size.width < (self.frame.size.width / _numOfBox) - 25) ? size.width : self.frame.size.width / _numOfBox - 25;
-    title.bounds = CGRectMake(0, 0, sizeWidth, size.height);
-    if (complete) {
-        complete();
-    }
-}
-
-- (void)animateArrow:(CALayer *)arrow
-                show:(BOOL)show
-            complete:(void(^)())complete
-{
-    if (show) {
-        arrow.hidden = NO;
-    }else {
-        arrow.hidden = YES;
-    }
+    CGFloat sizeWidth = fminf(size.width, CGRectGetWidth(self.frame) / _numOfBox - KIndatiorSize.width-KTitleIndatiorDistance);
+    title.bounds = CGRectMake(0, 1, sizeWidth, size.height);
     if (complete) {
         complete();
     }
@@ -735,17 +715,14 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
          backgroundView:(UIView *)background
               tableView:(UITableView *)tableView
              titleLayer:(CATextLayer *)title
-                   arrow:(CALayer *)arrow
                 forward:(BOOL)forward
               complecte:(void(^)())complete
 {
     
     [self animateIndicator:indicator Forward:forward complete:^{
         [self animateTitle:title show:forward complete:^{
-            [self animateArrow:arrow show:forward complete:^{
-                [self animateBackGroundView:background show:forward complete:^{
-                    [self animateTableView:tableView show:forward complete:nil];
-                }];
+            [self animateBackGroundView:background show:forward complete:^{
+                [self animateTableView:tableView show:forward complete:nil];
             }];
         }];
     }];
@@ -759,16 +736,13 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
           backgroundView:(UIView *)background
           collectionView:(UICollectionView *)collectionView
               titleLayer:(CATextLayer *)title
-                   arrow:(CALayer *)arrow
                  forward:(BOOL)forward
                complecte:(void(^)())complete
 {
     [self animateIndicator:indicator Forward:forward complete:^{
         [self animateTitle:title show:forward complete:^{
-            [self animateArrow:arrow show:forward complete:^{
-                [self animateBackGroundView:background show:forward complete:^{
-                    [self animateCollectionView:collectionView show:forward complete:nil];
-                }];
+            [self animateBackGroundView:background show:forward complete:^{
+                [self animateCollectionView:collectionView show:forward complete:nil];
             }];
         }];
     }];
@@ -868,15 +842,14 @@ static NSString * const collectionViewFooterIndentifier = @"collectionViewFooter
             backgroundView:_backGroundView
                  tableView:_tableView
                 titleLayer:_titleLayerAry[_currentSelectedBoxIndex]
-                     arrow:_arrowsAry[_currentSelectedBoxIndex]
                    forward:NO
                  complecte:^{
                      _isShow = NO;
                     }];
     [(CALayer *)self.bgLayerAry[_currentSelectedBoxIndex] setBackgroundColor:KBoxTitleBackColor.CGColor];
 
-CAShapeLayer *indicator = (CAShapeLayer *)_indicatorAry[_currentSelectedBoxIndex];
-    indicator.position = CGPointMake(title.position.x + title.frame.size.width / 2 + 8, indicator.position.y);
+    CAShapeLayer *indicator = (CAShapeLayer *)_indicatorAry[_currentSelectedBoxIndex];
+    indicator.position = CGPointMake(title.position.x + title.frame.size.width / 2 + KTitleIndatiorDistance+KIndatiorSize.width/2.0, indicator.position.y);
 }
 #pragma mark - UICollectionViewDataSource -
 
@@ -987,7 +960,6 @@ CAShapeLayer *indicator = (CAShapeLayer *)_indicatorAry[_currentSelectedBoxIndex
             backgroundView:_backGroundView
             collectionView:_collectionView
                 titleLayer:_titleLayerAry[_currentSelectedBoxIndex]
-                     arrow:_arrowsAry[_currentSelectedBoxIndex]
                    forward:NO
                  complecte:^{
                      _isShow = NO;

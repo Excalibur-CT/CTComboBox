@@ -29,18 +29,9 @@
     self.selectTwoAry = [NSMutableArray arrayWithCapacity:1];
     
     _selectIndex = -1;
-    NSMutableArray * temp1Ary = [NSMutableArray arrayWithCapacity:1];
-    NSMutableArray * temp2Ary = [NSMutableArray arrayWithCapacity:1];
+    NSArray * temp1Ary = @[@"北京",@"上海",@"深圳",@"广州",@"哈尔滨",@"青岛",@"乌鲁木齐",@"大连",@"南京",@"杭州",@"武汉",@"合肥"];
+    NSArray * temp2Ary = @[@"养护",@"洗车",@"打蜡",@"护理",@"维修"];
     
-    for (int i = 0; i<20; i++) {
-        NSString * text = [NSString stringWithFormat:@"上海%d", i];
-        [temp1Ary addObject:text];
-    }
-    
-    for (int i = 0; i<10; i++) {
-        NSString * text = [NSString stringWithFormat:@"类型%d", i];
-        [temp2Ary addObject:text];
-    }
     
     [_dataAry addObject:temp1Ary];
     [_dataAry addObject:temp2Ary];
